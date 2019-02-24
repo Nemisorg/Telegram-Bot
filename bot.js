@@ -29,7 +29,7 @@ function grepRandomResponse(responseList) {
 function teleExec(workingDirectory, command, sendID) {
     exec(`cd ${workingDirectory} ; ${command}`, (err, stdout, stderr) => {
         console.log(`${stdout}\n${stderr}`);
-        if (user != root) {
+        if (user != "root") {
             return bot.sendMessage(sendID, `${user}@${hostname}:${workingDirectory}$ ${command}\n${stdout}\n${stderr}`);
         } else {
             return bot.sendMessage(sendID, `${user}@${hostname}:${workingDirectory}# ${command}\n${stdout}\n${stderr}`);
