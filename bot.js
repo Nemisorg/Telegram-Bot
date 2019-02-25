@@ -38,14 +38,16 @@ function teleExec(workingDirectory, command, sendID) {
 }
 
 function checkDir(newSpawnDir, sendID) {
-    exec(`cd ${newSpawnDir}`, (err) => {
-        if (err) {
-            console.log(`Er kon niet geswitcht worden naar ${newSpawnDir}.`);
-            return bot.sendMessage(sendID, `Er kon niet geswitcht worden naar ${newSpawnDir}.`);
+    exec(`cd ${newSpawnDir}`, (err, stdout, stderr) => {
+        console.log(`${stdout}\n${stderr}`);
+        if (user != "root") {
+            bot.sendMessage(sendID, `${user}@${hostname}:${spawnDir}$ cd ${newSpawnDir}\n${stdout}\n${stderr}`);
+        } else {
+            bot.sendMessage(sendID, `${user}@${hostname}:${spawnDir}# cd ${newSpawnDir}\n${stdout}\n${stderr}`);
         }
-        spawnDir = newSpawnDir;
-        console.log(`Er is geswitcht naar ${spawnDir}`);
-        return bot.sendMessage(sendID, `Er is geswitcht naar ${spawnDir}`);
+        if (err == false) {
+            spawnDir = newSpawnDir;
+        }
     });
 }
 
@@ -57,7 +59,7 @@ bot.on('/start', (msg) => {
 
 bot.on('/wiebenje', (msg) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft gevraagd naar mijn naam.`);
-    return bot.sendMessage(msg.from.id, "Ik ben een geniale memebot. AANBID MIJ!!! \nOok btw, ik ben gecreëerd door Nemisorg... Je zou hem ook zeker moeten aanbidden $)");
+    return bot.sendMessage(msg.from.id, "Ik ben qwerty een multifunctionele Telegram bot. Ik antwoord op commando's en maak Shell access mogelijk. Veel plezier!");
 });
 
 bot.on('/foto', (msg) => {
@@ -85,15 +87,17 @@ bot.on(/^([dD]o+e+i+)+/, (msg) => {
     return bot.sendMessage(msg.from.id, "Fijne dag nog!");
 });
 
-bot.on(/^\/cd/, (msg) => {
-    var newSpawnDir = msg.text.replace(/\/cd ?/, "");
+bot.on(/^\/cd( (.+))?/, (msg, props) => {
+    if (typeof(props.match[2]) == "undefined") {
+        var newSpawnDir = "~";
+    } else {
+        var newSpawnDir = props.match[2];
+    }
     if (newSpawnDir.includes(";")) {
         var command = newSpawnDir.split(/; ?/)[1];
         newSpawnDir = newSpawnDir.replace(/ ?;.*/, "");
     }
-    if (newSpawnDir == "" | newSpawnDir == "~") {
-        newSpawnDir = "~";
-    } else if (/^\//.test(newSpawnDir) == false) {
+    if (/^\//.test(newSpawnDir) == false && newSpawnDir != "~") {
         newSpawnDir = spawnDir + "/" + newSpawnDir;
     } 
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) wilt switchen naar ${newSpawnDir}.`);
@@ -103,10 +107,15 @@ bot.on(/^\/cd/, (msg) => {
     }
 });
 
-bot.on(/^\/cmd /, (msg) => {
-    var command = msg.text.replace("/cmd ", "");
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd.`);
+bot.on(/^\/cmd (.+)/, (msg, props) => {
+    var command = props.match[1];
+    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd als user ${user}.`);
     teleExec(spawnDir, command, msg.from.id);
+});
+
+bot.on(/.+(\?+)$/, (msg) => {
+    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft iets gevraagd waar ik geen antwoord op heb.`);
+    return bot.sendMessage(msg.from.id, "Weet ik veel!");
 });
 
 
