@@ -38,15 +38,14 @@ function teleExec(workingDirectory, command, sendID) {
 }
 
 function checkDir(newSpawnDir, sendID) {
-    exec(`cd ${newSpawnDir}`, (err, stdout, stderr) => {
-        if (err == null) {
-            spawnDir = newSpawnDir;
-            console.log(`Er is geswitcht naar ${spawnDir}`);
-            return bot.sendMessage(sendID, `Er is geswitcht naar ${spawnDir}`);
-        } else {
-            console.log(`${stdout}\n${stderr}`);
-            return bot.sendMessage(sendID, `${stdout}\n${stderr}`);
+    exec(`cd ${newSpawnDir}`, (err) => {
+        if (err) {
+            console.log(`Er kon niet geswitcht worden naar ${newSpawnDir}.`);
+            return bot.sendMessage(sendID, `Er kon niet geswitcht worden naar ${newSpawnDir}.`);
         }
+        spawnDir = newSpawnDir;
+        console.log(`Er is geswitcht naar ${spawnDir}`);
+        return bot.sendMessage(sendID, `Er is geswitcht naar ${spawnDir}`);
     });
 }
 
@@ -58,7 +57,7 @@ bot.on('/start', (msg) => {
 
 bot.on('/wiebenje', (msg) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft gevraagd naar mijn naam.`);
-    return bot.sendMessage(msg.from.id, "Ik ben qwerty een multifunctionele Telegram bot. Ik antwoord op commando's en maak Shell access mogelijk. Veel plezier!");
+    return bot.sendMessage(msg.from.id, "Ik ben een geniale memebot. AANBID MIJ!!! \nOok btw, ik ben gecreëerd door Nemisorg... Je zou hem ook zeker moeten aanbidden $)");
 });
 
 bot.on('/foto', (msg) => {
@@ -86,42 +85,28 @@ bot.on(/^([dD]o+e+i+)+/, (msg) => {
     return bot.sendMessage(msg.from.id, "Fijne dag nog!");
 });
 
-bot.on(/^\/cd( (.+))?/, (msg, props) => {
-    if (typeof(props.match[2]) == "undefined") {
-        var newSpawnDir = "~";
-    } else if (props.match[2].includes(";")) {
-        var newSpawnDir = props.match[2];
+bot.on(/^\/cd/, (msg) => {
+    var newSpawnDir = msg.text.replace(/\/cd ?/, "");
+    if (newSpawnDir.includes(";")) {
         var command = newSpawnDir.split(/; ?/)[1];
         newSpawnDir = newSpawnDir.replace(/ ?;.*/, "");
-        if (newSpawnDir == "") {
-            newSpawnDir = "~";
-        }
-    } else {
-        var newSpawnDir = props.match[2];
     }
-    if (/^\//.test(newSpawnDir) == false && newSpawnDir != "~") {
-        if (spawnDir != "/") {
-            newSpawnDir = spawnDir + "/" + newSpawnDir;
-        } else {
-            newSpawnDir = "/" + newSpawnDir;
-        }
+    if (newSpawnDir == "" | newSpawnDir == "~") {
+        newSpawnDir = "~";
+    } else if (/^\//.test(newSpawnDir) == false) {
+        newSpawnDir = spawnDir + "/" + newSpawnDir;
     } 
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) wilt switchen naar ${newSpawnDir}.`);
     checkDir(newSpawnDir, msg.from.id);
     if (typeof(command) != "undefined") {
-        teleExec(newSpawnDir, command, msg.from.id);
+        teleExec(spawnDir, command, msg.from.id);
     }
 });
 
-bot.on(/^\/cmd (.+)/, (msg, props) => {
-    var command = props.match[1];
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd als user ${user}.`);
+bot.on(/^\/cmd /, (msg) => {
+    var command = msg.text.replace("/cmd ", "");
+    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd.`);
     teleExec(spawnDir, command, msg.from.id);
-});
-
-bot.on(/.+(\?+)$/, (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft iets gevraagd waar ik geen antwoord op heb.`);
-    return bot.sendMessage(msg.from.id, "Weet ik veel!");
 });
 
 
