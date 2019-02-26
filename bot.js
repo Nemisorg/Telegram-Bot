@@ -1,25 +1,17 @@
 const TeleBot = require("telebot");
-
+const mongo = require("mongodb").MongoClient;
 const os = require("os");
-
-const bot = new TeleBot({
-    token: "762616559:AAExFjyOjKP9zM3_LazkpVYnViv9aC8bHog"
-});
+const { exec } = require("child_process");
 
 const greetings = ["Hallo!", "Hoi!", "Hey!", "Goedendag!", "Hoe gaat ie!"];
-
-const { exec } = require('child_process');
-
-var spawnDir = require('path').dirname(require.main.filename);
-
 const hostname = os.hostname();
-
 const user = os.userInfo().username;
+var spawnDir = require("path").dirname(require.main.filename);
+var url = "mongodb://localhost/TeleBotDB";
+
 
 console.log(user);
-
 console.log(hostname);
-
 console.log(spawnDir);
 
 function grepRandomResponse(responseList) {
@@ -41,6 +33,7 @@ function checkDir(newSpawnDir, sendID) {
     exec(`cd ${newSpawnDir}`, (err, stdout, stderr) => {
         if (err == null) {
             spawnDir = newSpawnDir;
+
             console.log(`Er is geswitcht naar ${spawnDir}`);
             return bot.sendMessage(sendID, `Er is geswitcht naar ${spawnDir}`);
         } else {
@@ -50,23 +43,30 @@ function checkDir(newSpawnDir, sendID) {
     });
 }
 
+function addUserDB(ID, name) {
 
-bot.on('/start', (msg) => {
+}
+
+const bot = new TeleBot({
+    token: "762616559:AAExFjyOjKP9zM3_LazkpVYnViv9aC8bHog"
+});
+
+bot.on("/start", (msg) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het /start commando gegeven.`);
     return bot.sendMessage(msg.from.id, "Hello world!");
 });
 
-bot.on('/wiebenje', (msg) => {
+bot.on("/wiebenje", (msg) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft gevraagd naar mijn naam.`);
     return bot.sendMessage(msg.from.id, "Ik ben qwerty een multifunctionele Telegram bot. Ik antwoord op commando's en maak Shell access mogelijk. Veel plezier!");
 });
 
-bot.on('/foto', (msg) => {
+bot.on("/foto", (msg) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft een foto opgevraagd.`);
     return bot.sendPhoto(msg.from.id, "images/meme.jpg");
 });
 
-bot.on('/versie', (msg) => {
+bot.on("/versie", (msg) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft mijn versienummer opgevraagd.`);
     return bot.sendPhoto(msg.from.id, "images/java_version.png", {replyToMessage: msg.message_id});
 });
@@ -93,12 +93,14 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
         var newSpawnDir = props.match[2];
         var command = newSpawnDir.split(/; ?/)[1];
         newSpawnDir = newSpawnDir.replace(/ ?;.*/, "");
+
         if (newSpawnDir == "") {
             newSpawnDir = "~";
         }
     } else {
         var newSpawnDir = props.match[2];
     }
+
     if (/^\//.test(newSpawnDir) == false && newSpawnDir != "~") {
         if (spawnDir != "/") {
             newSpawnDir = spawnDir + "/" + newSpawnDir;
@@ -106,7 +108,9 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
             newSpawnDir = "/" + newSpawnDir;
         }
     } 
+
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) wilt switchen naar ${newSpawnDir}.`);
+    
     checkDir(newSpawnDir, msg.from.id);
     if (typeof(command) != "undefined") {
         teleExec(newSpawnDir, command, msg.from.id);
@@ -115,6 +119,7 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
 
 bot.on(/^\/cmd (.+)/, (msg, props) => {
     var command = props.match[1];
+
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd als user ${user}.`);
     teleExec(spawnDir, command, msg.from.id);
 });
@@ -122,6 +127,11 @@ bot.on(/^\/cmd (.+)/, (msg, props) => {
 bot.on(/.+(\?+)$/, (msg) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft iets gevraagd waar ik geen antwoord op heb.`);
     return bot.sendMessage(msg.from.id, "Weet ik veel!");
+});
+
+bot.on(/^\/postcode [1-9][0-9]{3} ?[a-zA-Z]{2}/, (msg) => {
+    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft een juiste postcode ingevuld.`);
+    return bot.sendMessage(msg.from.id, "Bedankt voor het doorgeven van een goede postcode!");
 });
 
 
