@@ -1,0 +1,33 @@
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot that provides shell access and responds to a few messages.",
+  "main": "bot.js",
+  "scripts": {
+    "test": "node bot.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nemisorg/Telegram-Bot.git"
+  },
+  "keywords": [
+    "telegram",
+    "telebot",
+    "bot",
+    "telegram-bot",
+    "shell-access"
+  ],
+  "author": "Matthias Erselina",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Nemisorg/Telegram-Bot/issues"
+  },
+  "homepage": "https://github.com/Nemisorg/Telegram-Bot#readme",
+  "devDependencies": {
+    "eslint": "^5.15.1"
+  },
+  "dependencies": {
+    "mongodb": "^3.1.13",
+    "telebot": "^1.2.6"
+  }
+}

@@ -1,3 +1,7 @@
+/* eslint-disable max-lines-per-function */
+/* eslint-disable multiline-comment-style */
+/* eslint-disable capitalized-comments */
+/* eslint-disable no-console */
 const TeleBot = require("telebot");
 const mongo = require("mongodb").MongoClient;
 const os = require("os");
@@ -7,7 +11,8 @@ const greetings = ["Hallo!", "Hoi!", "Hey!", "Goedendag!", "Hoe gaat ie!"];
 const hostname = os.hostname();
 const user = os.userInfo().username;
 var spawnDir = require("path").dirname(require.main.filename);
-var url = "mongodb://localhost/TeleBotDB";
+var url = "mongodb://localhost/";
+var TeleID;
 
 
 console.log(user);
@@ -19,7 +24,7 @@ function grepRandomResponse(responseList) {
 }
 
 function teleExec(workingDirectory, command, sendID) {
-    exec(`cd ${workingDirectory} ; ${command}`, (err, stdout, stderr) => {
+    exec(`cd ${workingDirectory} ; ${command}`, (_err, stdout, stderr) => {
         console.log(`${stdout}\n${stderr}`);
         if (user != "root") {
             return bot.sendMessage(sendID, `${user}@${hostname}:${workingDirectory}$ ${command}\n${stdout}\n${stderr}`);
@@ -44,7 +49,61 @@ function checkDir(newSpawnDir, sendID) {
 }
 
 function addUserDB(ID, name) {
+    mongo.connect(url, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db("TeleBotDB");
+        dbo.collection("users").find({}).toArray(function(err, result) {
+            if (err) throw err;
+            var userExists;
+            for (var i = 0; i < result.length; i++) {
+                TeleID = result[i].ID;
+                if (TeleID == ID) {
+                    userExists = true;
+                    break;
+                } else {
+                    userExists = false;
+                }
+            }
+            if (userExists == true) {
+                console.log("a");
+                var myquery = { ID: TeleID };
+                var newvalues = { $set: { test: "iets???" } };
+                dbo.collection("users").updateOne(myquery, newvalues, function(err, _res) {
+                    if (err) throw err;
+                    db.close();
+                });
+            } else {
+                console.log("b");
+                var newUser = { name: name, ID: ID };
+                dbo.collection("users").insertOne(newUser, function(err, _res) {
+                    if (err) throw err;
+                    db.close();
+                });
+            }
+        });
+    });
 
+    /* mongo.connect(url, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db("TeleBotDB");
+        if (userExists == true) {
+            console.log("a");
+            var myquery = { ID: TeleID };
+            var newvalues = { $set: {test: "iets???" } };
+            dbo.collection("users").updateOne(myquery, newvalues, function(err, res) {
+                if (err) throw err;
+                db.close();
+            });
+        } else {
+            console.log("b");
+            var newUser = { name: name, ID: ID };
+            dbo.collection("users").insertOne(newUser, function(err, res) {
+                if (err) throw err;
+                db.close();
+            });
+        }
+        userExists = false;
+    }); */
 }
 
 const bot = new TeleBot({
@@ -87,10 +146,11 @@ bot.on(/^([dD]o+e+i+)+/, (msg) => {
 });
 
 bot.on(/^\/cd( (.+))?/, (msg, props) => {
+    var newSpawnDir;
     if (typeof(props.match[2]) == "undefined") {
-        var newSpawnDir = "~";
+        newSpawnDir = "~";
     } else if (props.match[2].includes(";")) {
-        var newSpawnDir = props.match[2];
+        newSpawnDir = props.match[2];
         var command = newSpawnDir.split(/; ?/)[1];
         newSpawnDir = newSpawnDir.replace(/ ?;.*/, "");
 
@@ -98,7 +158,7 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
             newSpawnDir = "~";
         }
     } else {
-        var newSpawnDir = props.match[2];
+        newSpawnDir = props.match[2];
     }
 
     if (/^\//.test(newSpawnDir) == false && newSpawnDir != "~") {
@@ -119,6 +179,8 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
 
 bot.on(/^\/cmd (.+)/, (msg, props) => {
     var command = props.match[1];
+
+    addUserDB(msg.from.id, `${msg.from.first_name} ${msg.from.last_name}`)
 
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd als user ${user}.`);
     teleExec(spawnDir, command, msg.from.id);
