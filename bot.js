@@ -1,7 +1,7 @@
-/* eslint-disable max-lines-per-function */
 /* eslint-disable multiline-comment-style */
 /* eslint-disable capitalized-comments */
 /* eslint-disable no-console */
+
 const TeleBot = require("telebot");
 const mongo = require("mongodb").MongoClient;
 const os = require("os");
@@ -10,9 +10,9 @@ const { exec } = require("child_process");
 const greetings = ["Hallo!", "Hoi!", "Hey!", "Goedendag!", "Hoe gaat ie!"];
 const hostname = os.hostname();
 const user = os.userInfo().username;
-var spawnDir = require("path").dirname(require.main.filename);
-var url = "mongodb://localhost/";
-var TeleID;
+const url = "mongodb://localhost/";
+let spawnDir = require("path").dirname(require.main.filename);
+let TeleID;
 
 
 console.log(user);
@@ -25,56 +25,57 @@ function grepRandomResponse(responseList) {
 
 function teleExec(workingDirectory, command, sendID) {
     exec(`cd ${workingDirectory} ; ${command}`, (_err, stdout, stderr) => {
-        console.log(`${stdout}\n${stderr}`);
+        let userSign;
         if (user != "root") {
-            return bot.sendMessage(sendID, `${user}@${hostname}:${workingDirectory}$ ${command}\n${stdout}\n${stderr}`);
-        } else {
-            return bot.sendMessage(sendID, `${user}@${hostname}:${workingDirectory}# ${command}\n${stdout}\n${stderr}`);
+            userSign = "$";
         }
+        else {
+            userSign = "#";
+        }
+
+        console.log(`${user}@${hostname}:${workingDirectory}${userSign} ${command}\n\n${stdout}\n${stderr}`);
+        return bot.sendMessage(sendID, `${user}@${hostname}:${workingDirectory}${userSign} ${command}\n\n${stdout}\n${stderr}`);
     });
 }
 
 function checkDir(newSpawnDir, sendID) {
     exec(`cd ${newSpawnDir}`, (err, stdout, stderr) => {
+        let message;
+        
         if (err == null) {
             spawnDir = newSpawnDir;
-
-            console.log(`Er is geswitcht naar ${spawnDir}`);
-            return bot.sendMessage(sendID, `Er is geswitcht naar ${spawnDir}`);
-        } else {
-            console.log(`${stdout}\n${stderr}`);
-            return bot.sendMessage(sendID, `${stdout}\n${stderr}`);
+            message = `Er is geswitcht naar ${spawnDir}`;
         }
+        else {
+            message = `${stdout}\n${stderr}`;
+        }
+
+        console.log(message);
+        return bot.sendMessage(sendID, message);
     });
 }
 
 function addUserDB(ID, name) {
-    mongo.connect(url, function(err, db) {
+    mongo.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
-        var dbo = db.db("TeleBotDB");
+
+        let dbo = db.db("TeleBotDB");
         dbo.collection("users").find({}).toArray(function(err, result) {
             if (err) throw err;
-            var userExists;
-            for (var i = 0; i < result.length; i++) {
+
+            let userExists;
+            for (let i = 0; i < result.length; i++) {
                 TeleID = result[i].ID;
                 if (TeleID == ID) {
                     userExists = true;
                     break;
-                } else {
-                    userExists = false;
                 }
             }
-            if (userExists == true) {
-                console.log("a");
-                var myquery = { ID: TeleID };
-                var newvalues = { $set: { test: "iets???" } };
-                dbo.collection("users").updateOne(myquery, newvalues, function(err, _res) {
-                    if (err) throw err;
-                    db.close();
-                });
-            } else {
-                console.log("b");
-                var newUser = { name: name, ID: ID };
+
+            if (userExists != true) {
+                console.log(`Adding new user: ${name}, ${ID}`);
+
+                let newUser = { name: name, ID: ID, sh_commands: {}, commands: {} };
                 dbo.collection("users").insertOne(newUser, function(err, _res) {
                     if (err) throw err;
                     db.close();
@@ -82,32 +83,14 @@ function addUserDB(ID, name) {
             }
         });
     });
-
-    /* mongo.connect(url, function(err, db) {
-        if (err) throw err;
-        var dbo = db.db("TeleBotDB");
-        if (userExists == true) {
-            console.log("a");
-            var myquery = { ID: TeleID };
-            var newvalues = { $set: {test: "iets???" } };
-            dbo.collection("users").updateOne(myquery, newvalues, function(err, res) {
-                if (err) throw err;
-                db.close();
-            });
-        } else {
-            console.log("b");
-            var newUser = { name: name, ID: ID };
-            dbo.collection("users").insertOne(newUser, function(err, res) {
-                if (err) throw err;
-                db.close();
-            });
-        }
-        userExists = false;
-    }); */
 }
 
 const bot = new TeleBot({
     token: "762616559:AAExFjyOjKP9zM3_LazkpVYnViv9aC8bHog"
+});
+
+bot.on(/.+/, (msg) => {
+    addUserDB(msg.from.id, `${msg.from.first_name} ${msg.from.last_name}`);
 });
 
 bot.on("/start", (msg) => {
@@ -115,7 +98,7 @@ bot.on("/start", (msg) => {
     return bot.sendMessage(msg.from.id, "Hello world!");
 });
 
-bot.on("/wiebenje", (msg) => {
+bot.on("/wiebenje", (msg) => {    
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft gevraagd naar mijn naam.`);
     return bot.sendMessage(msg.from.id, "Ik ben qwerty een multifunctionele Telegram bot. Ik antwoord op commando's en maak Shell access mogelijk. Veel plezier!");
 });
@@ -146,10 +129,12 @@ bot.on(/^([dD]o+e+i+)+/, (msg) => {
 });
 
 bot.on(/^\/cd( (.+))?/, (msg, props) => {
-    var newSpawnDir;
+    let newSpawnDir;
+    
     if (typeof(props.match[2]) == "undefined") {
         newSpawnDir = "~";
-    } else if (props.match[2].includes(";")) {
+    }
+    else if (props.match[2].includes(";")) {
         newSpawnDir = props.match[2];
         var command = newSpawnDir.split(/; ?/)[1];
         newSpawnDir = newSpawnDir.replace(/ ?;.*/, "");
@@ -157,14 +142,16 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
         if (newSpawnDir == "") {
             newSpawnDir = "~";
         }
-    } else {
+    }
+    else {
         newSpawnDir = props.match[2];
     }
 
     if (/^\//.test(newSpawnDir) == false && newSpawnDir != "~") {
         if (spawnDir != "/") {
             newSpawnDir = spawnDir + "/" + newSpawnDir;
-        } else {
+        }
+        else {
             newSpawnDir = "/" + newSpawnDir;
         }
     } 
@@ -172,15 +159,14 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) wilt switchen naar ${newSpawnDir}.`);
     
     checkDir(newSpawnDir, msg.from.id);
+    
     if (typeof(command) != "undefined") {
         teleExec(newSpawnDir, command, msg.from.id);
     }
 });
 
 bot.on(/^\/cmd (.+)/, (msg, props) => {
-    var command = props.match[1];
-
-    addUserDB(msg.from.id, `${msg.from.first_name} ${msg.from.last_name}`)
+    let command = props.match[1];
 
     console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd als user ${user}.`);
     teleExec(spawnDir, command, msg.from.id);
