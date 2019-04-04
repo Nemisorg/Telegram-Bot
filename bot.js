@@ -1,6 +1,6 @@
-/* eslint-disable multiline-comment-style */
-/* eslint-disable capitalized-comments */
 /* eslint-disable no-console */
+
+/* jshint esversion: 6 */
 
 const TeleBot = require("telebot");
 const mongo = require("mongodb").MongoClient;
@@ -13,6 +13,7 @@ const user = os.userInfo().username;
 const url = "mongodb://localhost/";
 let spawnDir = require("path").dirname(require.main.filename);
 let TeleID;
+let userObject;
 
 
 console.log(user);
@@ -33,12 +34,14 @@ function teleExec(workingDirectory, command, sendID) {
             userSign = "#";
         }
 
+        addCommand(sendID, `${user}@${hostname}:${workingDirectory}${userSign} ${command}`, `${stdout}\n${stderr}`)
+
         console.log(`${user}@${hostname}:${workingDirectory}${userSign} ${command}\n\n${stdout}\n${stderr}`);
         return bot.sendMessage(sendID, `${user}@${hostname}:${workingDirectory}${userSign} ${command}\n\n${stdout}\n${stderr}`);
     });
 }
 
-function checkDir(newSpawnDir, sendID) {
+function checkDir(newSpawnDir, sendID, receivedText) {
     exec(`cd ${newSpawnDir}`, (err, stdout, stderr) => {
         let message;
         
@@ -49,6 +52,8 @@ function checkDir(newSpawnDir, sendID) {
         else {
             message = `${stdout}\n${stderr}`;
         }
+
+        addCommand(sendID, receivedText, message)
 
         console.log(message);
         return bot.sendMessage(sendID, message);
@@ -68,14 +73,16 @@ function addUserDB(ID, name) {
                 TeleID = result[i].ID;
                 if (TeleID == ID) {
                     userExists = true;
+                    userObject = result[i].commands;
                     break;
                 }
             }
 
             if (userExists != true) {
-                console.log(`Adding new user: ${name}, ${ID}`);
+                console.log(`Nieuwe gebruiker toegevoegd: ${name}, ${ID}`);
 
-                let newUser = { name: name, ID: ID, sh_commands: {}, commands: {} };
+                let newUser = { name: name, ID: ID, commands: {} };
+                userObject = newUser.commands;
                 dbo.collection("users").insertOne(newUser, function(err, _res) {
                     if (err) throw err;
                     db.close();
@@ -83,6 +90,50 @@ function addUserDB(ID, name) {
             }
         });
     });
+}
+
+function addCommand(ID, command, stdout) {
+    let date = new Date();
+    let current_hour = date;
+    console.log(current_hour);
+    mongo.connect(url, { useNewUrlParser: true }, (err, db) => {
+        if (err) throw err;
+
+        let dbo = db.db("TeleBotDB");
+
+        let date = getDateTime();
+
+        let myQuery = { ID: ID };
+        userObject[date] = { [command]: stdout };
+        let newValues = { $set: { commands: userObject } };
+        dbo.collection("users").updateOne(myQuery, newValues, function(err, _res) {
+            if (err) throw err;
+            db.close();
+        });
+    });
+}
+
+function getDateTime() {
+    let date = new Date();
+
+    let hour = date.getHours();
+    hour = (hour < 10 ? "0" : "") + hour;
+
+    let min  = date.getMinutes();
+    min = (min < 10 ? "0" : "") + min;
+
+    let sec  = date.getSeconds();
+    sec = (sec < 10 ? "0" : "") + sec;
+
+    let year = date.getFullYear();
+
+    let month = date.getMonth() + 1;
+    month = (month < 10 ? "0" : "") + month;
+
+    let day  = date.getDate();
+    day = (day < 10 ? "0" : "") + day;
+
+    return year + ":" + month + ":" + day + ":" + hour + ":" + min + ":" + sec;
 }
 
 const bot = new TeleBot({
@@ -94,38 +145,79 @@ bot.on(/.+/, (msg) => {
 });
 
 bot.on("/start", (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het /start commando gegeven.`);
-    return bot.sendMessage(msg.from.id, "Hello world!");
+    let receivedText = "/start";
+    let response = "Hello world!";
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${receivedText}\n${response}`);
+    return bot.sendMessage(msg.from.id, response);
 });
 
-bot.on("/wiebenje", (msg) => {    
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft gevraagd naar mijn naam.`);
-    return bot.sendMessage(msg.from.id, "Ik ben qwerty een multifunctionele Telegram bot. Ik antwoord op commando's en maak Shell access mogelijk. Veel plezier!");
+bot.on("/wiebenje", (msg) => {
+    let receivedText = "/wiebenje";
+    let response = "Ik ben qwerty, een multifunctionele Telegram bot. Ik antwoord op commando's en maak Shell access mogelijk. Veel plezier!";    
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${receivedText}\n${response}`);
+    return bot.sendMessage(msg.from.id, response);
 });
 
 bot.on("/foto", (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft een foto opgevraagd.`);
-    return bot.sendPhoto(msg.from.id, "images/meme.jpg");
+    let receivedText = "/foto";
+    let response = "images/meme.jpg";
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${receivedText}\n${response}`);
+    return bot.sendPhoto(msg.from.id, response);
 });
 
 bot.on("/versie", (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft mijn versienummer opgevraagd.`);
-    return bot.sendPhoto(msg.from.id, "images/java_version.png", {replyToMessage: msg.message_id});
+    let receivedText = "/versie";
+    let response = "images/java_version.png";
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${receivedText}\n${response}`);
+    return bot.sendPhoto(msg.from.id, response, {replyToMessage: msg.message_id});
 });
 
 bot.on("/pino", (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft een foto van Pino opgevraagd.`);
-    return bot.sendPhoto(msg.from.id, "images/pino_dead.jpg");
+    let receivedText = "/pino";
+    let response = "images/pino_dead.jpg";
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${receivedText}\n${response}`);
+    return bot.sendPhoto(msg.from.id, response);
 });
 
-bot.on(/^([hH]o+i+)+|^([hH]e+y*)+|^([hH]a+l{2,}o+)+|^([gG]oedendag)+/, (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft hoi gezegd.`);
-    return bot.sendMessage(msg.from.id, grepRandomResponse(greetings));
+bot.on(/^([hH]o+i+)+|^([hH]e+y*)+|^([hH]a+l{2,}o+)+|^([gG]oedendag)+/, (msg, props) => {
+    let receivedText = Object.keys(props.match).map(function(key) {
+        return props.match[key];
+    });
+    receivedText = receivedText[receivedText.length - 1];
+    let response = grepRandomResponse(greetings);
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${receivedText}\n${response}`);
+    return bot.sendMessage(msg.from.id, response);
 });
 
-bot.on(/^([dD]o+e+i+)+/, (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft doei gezegd.`);
-    return bot.sendMessage(msg.from.id, "Fijne dag nog!");
+bot.on(/^([dD]o+e+i+)+/, (msg, props) => {
+    let receivedText = Object.keys(props.match).map(function(key) {
+        return props.match[key];
+    });
+    receivedText = receivedText[receivedText.length - 1];
+    let response = "Fijne dag nog!"
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${receivedText}\n${response}`);
+    return bot.sendMessage(msg.from.id, response);
 });
 
 bot.on(/^\/cd( (.+))?/, (msg, props) => {
@@ -156,9 +248,15 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
         }
     } 
 
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) wilt switchen naar ${newSpawnDir}.`);
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${props[{}]}`);
     
-    checkDir(newSpawnDir, msg.from.id);
+    let receivedText = Object.keys(props.match).map(function(key) {
+        return props.match[key];
+    });
+
+    receivedText = receivedText[receivedText.length - 1];
+
+    checkDir(newSpawnDir, msg.from.id, receivedText);
     
     if (typeof(command) != "undefined") {
         teleExec(newSpawnDir, command, msg.from.id);
@@ -166,20 +264,35 @@ bot.on(/^\/cd( (.+))?/, (msg, props) => {
 });
 
 bot.on(/^\/cmd (.+)/, (msg, props) => {
-    let command = props.match[1];
-
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft het commando ${command} uitgevoerd als user ${user}.`);
-    teleExec(spawnDir, command, msg.from.id);
+    teleExec(spawnDir, props.match[1], msg.from.id);
 });
 
-bot.on(/.+(\?+)$/, (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft iets gevraagd waar ik geen antwoord op heb.`);
-    return bot.sendMessage(msg.from.id, "Weet ik veel!");
+bot.on(/.+(\?+)$/, (msg, props) => {
+    let response = "Weet ik veel!";
+    let receivedText = Object.keys(props.match).map(function(key) {
+        return props.match[key];
+    });
+
+    receivedText = receivedText[receivedText.length - 1];
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${props}\n${response}`);
+    return bot.sendMessage(msg.from.id, response);
 });
 
-bot.on(/^\/postcode [1-9][0-9]{3} ?[a-zA-Z]{2}/, (msg) => {
-    console.log(`Gebruiker ${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}) heeft een juiste postcode ingevuld.`);
-    return bot.sendMessage(msg.from.id, "Bedankt voor het doorgeven van een goede postcode!");
+bot.on(/^\/postcode [1-9][0-9]{3} ?[a-zA-Z]{2}/, (msg, props) => {
+    let response = "Bedankt voor het doorgeven van een goede postcode!";
+    let receivedText = Object.keys(props.match).map(function(key) {
+        return props.match[key];
+    });
+
+    receivedText = receivedText[receivedText.length - 1];
+
+    addCommand(msg.from.id, receivedText, response);
+
+    console.log(`${msg.from.id} (${msg.from.first_name} ${msg.from.last_name}): ${props[{}]}`);
+    return bot.sendMessage(msg.from.id, response);
 });
 
 
